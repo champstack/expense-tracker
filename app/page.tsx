@@ -89,7 +89,7 @@ function TopBar({
 }) {
   const y = currentDate.getFullYear(), m = currentDate.getMonth();
   const tabTitles: Record<TabType, string> = {
-    dashboard: "Dashboard ภาพรวม",
+    dashboard: "Money Planner",
     calendar: "ปฏิทินรายรับ-จ่าย",
     transactions: "บันทึกรายการ",
     budget: "ตั้งงบประมาณ",
@@ -97,7 +97,14 @@ function TopBar({
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-100 h-14 flex items-center px-5 gap-4 shrink-0 shadow-sm">
       {/* Page Title */}
-      <h1 className="font-bold text-indigo-600 text-lg flex-1">{tabTitles[activeTab]}</h1>
+      <div className="flex items-center gap-2.5 flex-1">
+        {activeTab === "dashboard" && (
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-sm md:hidden">
+            <Wallet className="w-4 h-4" />
+          </div>
+        )}
+        <h1 className="font-bold text-indigo-600 text-lg tracking-tight">{tabTitles[activeTab]}</h1>
+      </div>
 
       {/* Month Picker */}
       <div className="hidden md:flex items-center gap-1 border border-slate-200 rounded-xl px-3 py-1.5 bg-white hover:border-indigo-300 transition-colors">
@@ -156,18 +163,18 @@ function BottomNav({ active, onChange, onAdd }: { active: TabType; onChange: (t:
       <div className="flex items-center justify-around">
         {items.slice(0, 2).map((item) => (
           <button key={item.id} onClick={() => onChange(item.id)}
-            className={cn("flex flex-col items-center py-2 px-3 rounded-xl transition-colors", active === item.id ? "text-blue-600" : "text-slate-400")}>
+            className={cn("flex flex-col items-center py-2 px-3 rounded-xl transition-colors select-none outline-none focus:outline-none", active === item.id ? "text-blue-600 font-semibold" : "text-slate-400")}>
             {item.icon}
             <span className="text-[10px] font-medium mt-0.5">{item.label}</span>
           </button>
         ))}
         {/* Center FAB */}
-        <button onClick={onAdd} className="relative -top-3 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all">
+        <button onClick={onAdd} className="relative -top-3 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all outline-none focus:outline-none">
           <Plus className="w-6 h-6" strokeWidth={2.5} />
         </button>
         {items.slice(2).map((item) => (
           <button key={item.id} onClick={() => onChange(item.id)}
-            className={cn("flex flex-col items-center py-2 px-3 rounded-xl transition-colors", active === item.id ? "text-blue-600" : "text-slate-400")}>
+            className={cn("flex flex-col items-center py-2 px-3 rounded-xl transition-colors select-none outline-none focus:outline-none", active === item.id ? "text-blue-600 font-semibold" : "text-slate-400")}>
             {item.icon}
             <span className="text-[10px] font-medium mt-0.5">{item.label}</span>
           </button>
@@ -561,10 +568,33 @@ export default function HomePage() {
           <div className={activeTab === "calendar" || activeTab === "transactions" ? "flex flex-col flex-1 px-3 sm:px-4 pt-3 sm:pt-4 pb-20 md:pb-4 min-h-0" : "max-w-5xl mx-auto w-full px-4 pt-5 pb-8 space-y-5"}>
             {/* Sub header for transactions tab */}
             {activeTab === "transactions" && (
-              <div className="flex items-center justify-between mb-3 shrink-0">
-                <p className="text-xs text-slate-400">{formatThaiMonthYear(y, m)} · {monthTx.length} รายการ</p>
-                <button onClick={() => exportTransactionsToCsv(monthTx)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs">
+              <div className="flex items-center justify-between mb-3 shrink-0 gap-2">
+                {/* Month Navigation */}
+                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-2xs">
+                  <button
+                    onClick={() => setCurrentDate(new Date(y, m - 1, 1))}
+                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
+                    title="เดือนก่อนหน้า"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="px-2 text-xs sm:text-sm font-bold text-slate-700 select-none">
+                    {formatThaiMonthYear(y, m)}
+                  </span>
+                  <button
+                    onClick={() => setCurrentDate(new Date(y, m + 1, 1))}
+                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
+                    title="เดือนถัดไป"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => exportTransactionsToCsv(monthTx)}
+                  disabled={monthTx.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
+                >
                   <Download className="w-3.5 h-3.5" /> Export CSV
                 </button>
               </div>

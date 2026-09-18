@@ -4,20 +4,19 @@ import React, { useState, useMemo } from "react";
 import { Transaction, Category } from "@/types/database";
 import { formatCurrency, formatThaiDate } from "@/lib/utils";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { Search, Filter, Trash2, ArrowUpRight, ArrowDownLeft, SlidersHorizontal } from "lucide-react";
+import { Search, Trash2, ArrowUpRight, ArrowDownLeft, SlidersHorizontal, ReceiptText, X } from "lucide-react";
 
 interface TransactionListProps {
   transactions: Transaction[];
   categories: Category[];
   onDelete: (id: string) => void;
-  onOpenNewModal: () => void;
+  onOpenNewModal?: () => void;
 }
 
 export function TransactionList({
   transactions,
   categories,
   onDelete,
-  onOpenNewModal,
 }: TransactionListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
@@ -44,47 +43,63 @@ export function TransactionList({
     });
   }, [transactions, typeFilter, categoryFilter, searchTerm]);
 
+  const hasActiveFilters = typeFilter !== "all" || categoryFilter !== "all" || searchTerm.trim().length > 0;
+
   return (
     <div className="rounded-2xl bg-white p-4 md:p-6 shadow-sm border border-slate-100 flex-1 flex flex-col min-h-0">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100 shrink-0">
         <div>
           <h3 className="font-bold text-slate-800 text-base md:text-lg">ประวัติรายการ</h3>
-          <p className="text-xs text-slate-400">
-            ทั้งหมด {filteredTransactions.length} รายการ
+          <p className="text-xs text-slate-400 mt-0.5">
+            {transactions.length === 0
+              ? "ยังไม่มีรายการในเดือนนี้"
+              : hasActiveFilters
+              ? `พบ ${filteredTransactions.length} จาก ${transactions.length} รายการ`
+              : `ทั้งหมด ${transactions.length} รายการ`}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Search Box */}
-          <div className="relative flex-1 sm:w-56">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="ค้นหารายการ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
-          </div>
+        {transactions.length > 0 && (
+          <div className="flex items-center gap-2">
+            {/* Search Box */}
+            <div className="relative flex-1 sm:w-56">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="ค้นหารายการ..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-          {/* ปุ่มสลับตัวกรอง */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
-              showFilters || typeFilter !== "all" || categoryFilter !== "all"
-                ? "bg-blue-50 border-blue-200 text-blue-600"
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>ตัวกรอง</span>
-          </button>
-        </div>
+            {/* ปุ่มสลับตัวกรอง */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
+                showFilters || typeFilter !== "all" || categoryFilter !== "all"
+                  ? "bg-blue-50 border-blue-200 text-blue-600"
+                  : "border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>ตัวกรอง</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* แถบตัวกรองเพิ่มเติมเมื่อเปิด */}
-      {showFilters && (
+      {showFilters && transactions.length > 0 && (
         <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-100 flex flex-wrap items-center gap-3 text-xs animate-in fade-in duration-150">
           <div className="flex items-center gap-1.5">
             <span className="text-slate-500 font-medium">ประเภท:</span>
@@ -132,14 +147,14 @@ export function TransactionList({
             </select>
           </div>
 
-          {(typeFilter !== "all" || categoryFilter !== "all" || searchTerm) && (
+          {hasActiveFilters && (
             <button
               onClick={() => {
                 setTypeFilter("all");
                 setCategoryFilter("all");
                 setSearchTerm("");
               }}
-              className="text-rose-500 hover:underline text-xs ml-auto"
+              className="text-rose-500 hover:underline text-xs ml-auto font-medium"
             >
               ล้างตัวกรอง
             </button>
@@ -148,10 +163,50 @@ export function TransactionList({
       )}
 
       {/* รายการประวัติ */}
-      <div className="mt-4 space-y-2 flex-1 overflow-y-auto pr-1 min-h-0 pb-2">
+      <div className="mt-4 flex-1 flex flex-col min-h-0">
         {filteredTransactions.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            <p className="text-sm">ไม่พบรายการที่ค้นหา</p>
+          <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center">
+            {transactions.length === 0 ? (
+              // กรณีในเดือนนี้ไม่มีรายการเลย
+              <div className="flex flex-col items-center max-w-xs animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-center text-indigo-500 mb-3 shadow-xs">
+                  <ReceiptText className="w-8 h-8 stroke-[1.5]" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-700 mb-1">
+                  ยังไม่มีรายการในเดือนนี้
+                </h4>
+                <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                  เริ่มบันทึกรายรับหรือรายจ่าย โดยแตะที่ปุ่ม <span className="font-bold text-blue-600">+</span> ด้านล่างหน้าจอ
+                </p>
+                <div className="inline-flex items-center gap-1.5 text-[11px] text-indigo-600 bg-indigo-50/70 border border-indigo-100/80 px-3 py-1.5 rounded-full font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                  กดปุ่ม + ด้านล่างเพื่อเพิ่มรายการ
+                </div>
+              </div>
+            ) : (
+              // กรณีค้นหาหรือกรองแล้วไม่พบ
+              <div className="flex flex-col items-center max-w-xs animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mb-3">
+                  <Search className="w-7 h-7 stroke-[1.5]" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-700 mb-1">
+                  ไม่พบรายการที่ตรงกับเงื่อนไข
+                </h4>
+                <p className="text-xs text-slate-400 leading-relaxed mb-3">
+                  ลองค้นหาด้วยคำอื่น หรือกดล้างตัวกรองเพื่อดูรายการทั้งหมด
+                </p>
+                <button
+                  onClick={() => {
+                    setTypeFilter("all");
+                    setCategoryFilter("all");
+                    setSearchTerm("");
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+                >
+                  ล้างตัวกรองทั้งหมด
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           filteredTransactions.map((tx) => (

@@ -10,7 +10,7 @@ const prompt = Prompt({
 });
 
 export const metadata: Metadata = {
-  title: "ระบบบันทึกรายรับ-รายจ่าย | Minimal Expense Tracker",
+  title: "Money Planner | ระบบบันทึกรายรับ-รายจ่าย",
   description: "เว็บแอปพลิเคชันบันทึกรายรับ-รายจ่าย เรียบง่าย สบายตา รองรับหลายขนาดหน้าจอ พัฒนาด้วย Next.js, Supabase, Tailwind CSS และ Recharts",
 };
 
