@@ -321,10 +321,7 @@ function BudgetView({ transactions, categories, currentMonth }: {
           <div className="text-center py-10">
             <PiggyBank className="w-10 h-10 text-slate-300 mx-auto mb-3 stroke-1" />
             <p className="text-sm text-slate-500 mb-1">ยังไม่มีเป้าหมายการออม</p>
-            <p className="text-xs text-slate-400 mb-4">ตั้งเป้าหมายเพื่อแรงจูงใจในการออม</p>
-            <button onClick={() => setShowGoalModal(true)} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold shadow-sm">
-              + เพิ่มเป้าหมาย
-            </button>
+            <p className="text-xs text-slate-400">ตั้งเป้าหมายเพื่อสร้างแรงจูงใจในการออม</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
