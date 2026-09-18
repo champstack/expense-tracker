@@ -152,12 +152,6 @@ export function TransactionList({
         {filteredTransactions.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
             <p className="text-sm">ไม่พบรายการที่ค้นหา</p>
-            <button
-              onClick={onOpenNewModal}
-              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm"
-            >
-              + บันทึกรายการใหม่
-            </button>
           </div>
         ) : (
           filteredTransactions.map((tx) => (

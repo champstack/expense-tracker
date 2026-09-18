@@ -84,7 +84,7 @@ function TopBar({
   activeTab, currentDate, onDateChange, onAdd, onOpenAuth, isOnline, user,
 }: {
   activeTab: TabType; currentDate: Date; onDateChange: (d: Date) => void;
-  onAdd: () => void; onOpenAuth: () => void;
+  onAdd?: () => void; onOpenAuth: () => void;
   isOnline: boolean; user: any;
 }) {
   const y = currentDate.getFullYear(), m = currentDate.getMonth();
@@ -123,14 +123,18 @@ function TopBar({
         {isOnline ? "Online" : "Demo Mode"}
       </button>
 
-      {/* User Avatar */}
-      <button onClick={onOpenAuth} className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm hover:shadow-md transition-shadow">
-        {user?.email ? user.email[0].toUpperCase() : <User className="w-4 h-4" />}
-      </button>
-
-      {/* Add button (mobile) */}
-      <button onClick={onAdd} className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold">
-        <Plus className="w-4 h-4" strokeWidth={2.5} />
+      {/* User Avatar / Login Button */}
+      <button
+        onClick={onOpenAuth}
+        className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-full hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
+        title={user?.email || "เข้าสู่ระบบ"}
+      >
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+          {user?.email ? user.email[0].toUpperCase() : <User className="w-4 h-4" />}
+        </div>
+        <span className="hidden sm:inline text-xs font-semibold text-slate-700 max-w-[120px] truncate">
+          {user?.email ? user.email.split("@")[0] : "เข้าสู่ระบบ"}
+        </span>
       </button>
     </header>
   );
