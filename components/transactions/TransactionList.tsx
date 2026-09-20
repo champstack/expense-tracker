@@ -4,12 +4,13 @@ import React, { useState, useMemo } from "react";
 import { Transaction, Category } from "@/types/database";
 import { formatCurrency, formatThaiDate } from "@/lib/utils";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { Search, Trash2, ArrowUpRight, ArrowDownLeft, SlidersHorizontal, ReceiptText, X } from "lucide-react";
+import { Search, Trash2, ArrowUpRight, ArrowDownLeft, SlidersHorizontal, ReceiptText, X, Pencil } from "lucide-react";
 
 interface TransactionListProps {
   transactions: Transaction[];
   categories: Category[];
   onDelete: (id: string) => void;
+  onEdit?: (tx: Transaction) => void;
   onOpenNewModal?: () => void;
 }
 
@@ -17,6 +18,7 @@ export function TransactionList({
   transactions,
   categories,
   onDelete,
+  onEdit,
 }: TransactionListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
@@ -256,17 +258,28 @@ export function TransactionList({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => {
-                    if (confirm("คุณต้องการลบรายการนี้ใช่หรือไม่?")) {
-                      onDelete(tx.id);
-                    }
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
-                  title="ลบรายการ"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                  {onEdit && (
+                    <button
+                      onClick={() => onEdit(tx)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                      title="แก้ไขรายการ"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm("คุณต้องการลบรายการนี้ใช่หรือไม่?")) {
+                        onDelete(tx.id);
+                      }
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                    title="ลบรายการ"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))

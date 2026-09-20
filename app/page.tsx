@@ -18,7 +18,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import {
   LayoutDashboard, Calendar, ReceiptText, PiggyBank, Plus, Wallet,
   ChevronLeft, ChevronRight, User, CheckCircle2, AlertCircle,
-  Download, ArrowRight, Settings, RotateCcw,
+  Download, ArrowRight, Settings, RotateCcw, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +27,9 @@ type TabType = "dashboard" | "calendar" | "transactions" | "budget";
 // ────────────────────────────────────────────────────────────
 // Sidebar (Desktop only)
 // ────────────────────────────────────────────────────────────
-function Sidebar({ active, onChange, isOnline, onOpenAuth }: {
+function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, user }: {
   active: TabType; onChange: (t: TabType) => void; isOnline: boolean; onOpenAuth: () => void;
+  onOpenCategories: () => void; user: any;
 }) {
   const items: { id: TabType; icon: React.ReactNode; label: string }[] = [
     { id: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: "ภาพรวม (Dashboard)" },
@@ -64,16 +65,32 @@ function Sidebar({ active, onChange, isOnline, onOpenAuth }: {
             {item.label}
           </button>
         ))}
+
+        {/* Categories Manager */}
+        <button
+          onClick={onOpenCategories}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-indigo-100 hover:bg-white/15 hover:text-white transition-all text-left w-full mt-2"
+        >
+          <Tag className="w-5 h-5" />
+          จัดการหมวดหมู่
+        </button>
       </nav>
 
-      {/* Bottom: Settings */}
+      {/* Bottom: User status / Login */}
       <div className="px-3 pb-5 pt-3 border-t border-white/10 mt-2">
         <button
           onClick={onOpenAuth}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-rose-300 hover:bg-white/10 hover:text-rose-200 transition-colors w-full"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/90 hover:bg-white/15 transition-colors w-full text-left"
         >
-          <Settings className="w-5 h-5" />
-          ตั้งค่า / ล้างข้อมูล
+          <User className="w-5 h-5 text-indigo-200 shrink-0" />
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-xs font-semibold truncate text-white">
+              {user?.email ? user.email.split("@")[0] : "เข้าสู่ระบบ (ซิงก์คลาวด์)"}
+            </span>
+            <span className="text-[10px] text-indigo-200">
+              {user ? "เชื่อมต่อคลาวด์แล้ว" : "โหมดทดลองใช้งาน (Local)"}
+            </span>
+          </div>
         </button>
       </div>
     </aside>
@@ -81,10 +98,10 @@ function Sidebar({ active, onChange, isOnline, onOpenAuth }: {
 }
 
 function TopBar({
-  activeTab, currentDate, onDateChange, onAdd, onOpenAuth, isOnline, user,
+  activeTab, currentDate, onDateChange, onAdd, onOpenAuth, onOpenCategories, isOnline, user,
 }: {
   activeTab: TabType; currentDate: Date; onDateChange: (d: Date) => void;
-  onAdd?: () => void; onOpenAuth: () => void;
+  onAdd?: () => void; onOpenAuth: () => void; onOpenCategories?: () => void;
   isOnline: boolean; user: any;
 }) {
   const y = currentDate.getFullYear(), m = currentDate.getMonth();
@@ -95,51 +112,62 @@ function TopBar({
     budget: "ตั้งงบประมาณ",
   };
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-100 h-14 flex items-center px-5 gap-4 shrink-0 shadow-sm">
+    <header className="sticky top-0 z-40 bg-white border-b border-slate-100 h-14 flex items-center px-4 sm:px-5 gap-2 sm:gap-4 shrink-0 shadow-sm">
       {/* Page Title */}
-      <div className="flex items-center gap-2.5 flex-1">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         {activeTab === "dashboard" && (
-          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-sm md:hidden">
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-sm md:hidden shrink-0">
             <Wallet className="w-4 h-4" />
           </div>
         )}
-        <h1 className="font-bold text-indigo-600 text-lg tracking-tight">{tabTitles[activeTab]}</h1>
+        <h1 className="font-bold text-indigo-600 text-base sm:text-lg tracking-tight truncate">{tabTitles[activeTab]}</h1>
       </div>
 
-      {/* Month Picker */}
-      <div className="hidden md:flex items-center gap-1 border border-slate-200 rounded-xl px-3 py-1.5 bg-white hover:border-indigo-300 transition-colors">
-        <button onClick={() => onDateChange(new Date(y, m - 1, 1))} className="text-slate-400 hover:text-indigo-600 transition-colors p-0.5">
-          <ChevronLeft className="w-4 h-4" />
+      {/* Month Picker (Responsive: visible on both desktop and mobile) */}
+      <div className="flex items-center gap-0.5 sm:gap-1 border border-slate-200 rounded-xl px-1 sm:px-3 py-1 bg-white hover:border-indigo-300 transition-colors shrink-0">
+        <button onClick={() => onDateChange(new Date(y, m - 1, 1))} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="เดือนก่อนหน้า">
+          <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
-        <span className="px-2 text-sm font-semibold text-slate-700 min-w-[130px] text-center">
+        <span className="px-1 sm:px-2 text-xs sm:text-sm font-bold text-slate-700 min-w-[85px] sm:min-w-[130px] text-center select-none">
           {formatThaiMonthYear(y, m)}
         </span>
-        <button onClick={() => onDateChange(new Date(y, m + 1, 1))} className="text-slate-400 hover:text-indigo-600 transition-colors p-0.5">
-          <ChevronRight className="w-4 h-4" />
+        <button onClick={() => onDateChange(new Date(y, m + 1, 1))} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="เดือนถัดไป">
+          <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
       {/* Status Badge */}
       <button onClick={onOpenAuth} className={cn(
-        "hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors",
-        isOnline
+        "hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors shrink-0",
+        user
           ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-          : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+          : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200"
       )}>
-        <span className={cn("w-2 h-2 rounded-full", isOnline ? "bg-emerald-500" : "bg-amber-400")} />
-        {isOnline ? "Online" : "Demo Mode"}
+        <span className={cn("w-2 h-2 rounded-full", user ? "bg-emerald-500" : "bg-slate-400")} />
+        {user ? "Cloud Sync" : "Demo / Local"}
       </button>
+
+      {/* Categories Trigger on mobile & desktop */}
+      {onOpenCategories && (
+        <button
+          onClick={onOpenCategories}
+          className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors shrink-0"
+          title="จัดการหมวดหมู่"
+        >
+          <Tag className="w-4 h-4" />
+        </button>
+      )}
 
       {/* User Avatar / Login Button */}
       <button
         onClick={onOpenAuth}
-        className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-full hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
+        className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-full hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200 shrink-0"
         title={user?.email || "เข้าสู่ระบบ"}
       >
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
           {user?.email ? user.email[0].toUpperCase() : <User className="w-4 h-4" />}
         </div>
-        <span className="hidden sm:inline text-xs font-semibold text-slate-700 max-w-[120px] truncate">
+        <span className="hidden sm:inline text-xs font-semibold text-slate-700 max-w-[110px] truncate">
           {user?.email ? user.email.split("@")[0] : "เข้าสู่ระบบ"}
         </span>
       </button>
@@ -468,6 +496,7 @@ export default function HomePage() {
   const [formInitialDate, setFormInitialDate] = useState<string>();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [user, setUser] = useState<any>(null);
 
   const isOnline = isSupabaseConfigured();
@@ -549,17 +578,50 @@ export default function HomePage() {
     await loadData();
   };
   const handleDelete = async (id: string) => { await DataService.deleteTransaction(id); await loadData(); };
-  const handleAddForDate = (date: string) => { setFormInitialDate(date); setIsFormOpen(true); };
-  const openAdd = () => { setFormInitialDate(new Date().toISOString().split("T")[0]); setIsFormOpen(true); };
+  const handleEditTransaction = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setIsFormOpen(true);
+  };
+  const handleUpdateTransaction = async (id: string, item: any) => {
+    await DataService.updateTransaction(id, item);
+    await loadData();
+    setEditingTransaction(null);
+  };
+  const handleAddForDate = (date: string) => {
+    setEditingTransaction(null);
+    setFormInitialDate(date);
+    setIsFormOpen(true);
+  };
+  const openAdd = () => {
+    setEditingTransaction(null);
+    setFormInitialDate(new Date().toISOString().split("T")[0]);
+    setIsFormOpen(true);
+  };
 
   const tabLabel = { dashboard: "ภาพรวมการเงิน", calendar: "ปฏิทินรายรับ-จ่าย", transactions: "บันทึกรายการ & ประวัติ", budget: "งบประมาณ & เป้าหมาย" };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <TopBar activeTab={activeTab} currentDate={currentDate} onDateChange={setCurrentDate} onAdd={openAdd} onOpenAuth={() => setIsAuthOpen(true)} isOnline={isOnline} user={user} />
+      <TopBar
+        activeTab={activeTab}
+        currentDate={currentDate}
+        onDateChange={setCurrentDate}
+        onAdd={openAdd}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenCategories={() => setIsCategoriesOpen(true)}
+        isOnline={isOnline}
+        user={user}
+      />
 
       <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100vh - 56px)" }}>
-        <Sidebar active={activeTab} onChange={setActiveTab} isOnline={isOnline} onOpenAuth={() => setIsAuthOpen(true)} />
+        <Sidebar
+          active={activeTab}
+          onChange={setActiveTab}
+          isOnline={isOnline}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onOpenCategories={() => setIsCategoriesOpen(true)}
+          user={user}
+        />
 
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0 flex flex-col">
           <div className={activeTab === "calendar" || activeTab === "transactions" ? "flex flex-col flex-1 px-3 sm:px-4 pt-3 sm:pt-4 pb-20 md:pb-4 min-h-0" : "max-w-5xl mx-auto w-full px-4 pt-5 pb-8 space-y-5"}>
@@ -655,8 +717,13 @@ export default function HomePage() {
             {/* Tab: Transactions */}
             {activeTab === "transactions" && (
               <div className="flex-1 flex flex-col min-h-0">
-                <TransactionList transactions={monthTx} categories={categories} onDelete={handleDelete}
-                  onOpenNewModal={openAdd} />
+                <TransactionList
+                  transactions={monthTx}
+                  categories={categories}
+                  onDelete={handleDelete}
+                  onEdit={handleEditTransaction}
+                  onOpenNewModal={openAdd}
+                />
               </div>
             )}
 
@@ -672,10 +739,28 @@ export default function HomePage() {
       <BottomNav active={activeTab} onChange={setActiveTab} onAdd={openAdd} />
 
       {/* Modals */}
-      <TransactionFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)}
-        categories={categories} initialDate={formInitialDate} onSubmitBatch={handleBatchSubmit} />
+      <TransactionFormModal
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingTransaction(null);
+        }}
+        categories={categories}
+        initialDate={formInitialDate}
+        editingTransaction={editingTransaction}
+        onUpdateTransaction={handleUpdateTransaction}
+        onSubmitBatch={handleBatchSubmit}
+      />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} user={user} onAuthSuccess={loadData} />
-      <CategoryModal isOpen={isCategoriesOpen} onClose={() => setIsCategoriesOpen(false)} categories={categories} />
+      <CategoryModal
+        isOpen={isCategoriesOpen}
+        onClose={() => setIsCategoriesOpen(false)}
+        categories={categories}
+        onAddCategory={async (newCat) => {
+          await DataService.addCategory(newCat);
+          await loadData();
+        }}
+      />
     </div>
   );
 }
