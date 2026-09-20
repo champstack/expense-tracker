@@ -11,9 +11,19 @@ export const isSupabaseConfigured = () => {
   );
 };
 
+let browserClient: ReturnType<typeof createBrowserClient> | null = null;
+
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy-key";
 
-  return createBrowserClient(url, key);
+  if (typeof window === "undefined") {
+    return createBrowserClient(url, key);
+  }
+
+  if (!browserClient) {
+    browserClient = createBrowserClient(url, key);
+  }
+
+  return browserClient;
 }

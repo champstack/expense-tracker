@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Mail, Lock, ShieldCheck, User, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { X, Mail, Lock, ShieldCheck, User, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight, RefreshCw, Send, HelpCircle } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 interface AuthModalProps {
@@ -16,7 +16,7 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
@@ -27,13 +27,16 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
 
   const getThaiErrorMessage = (error: any): string => {
     const msg = error?.message || "";
-    if (msg.includes("Invalid login credentials")) return "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
-    if (msg.includes("Email not confirmed")) return "กรุณาตรวจสอบอีเมลของคุณเพื่อกดยืนยันตัวตนก่อนเข้าสู่ระบบ";
-    if (msg.includes("User already registered")) return "อีเมลนี้ถูกลงทะเบียนแล้ว กรุณาเลือก 'เข้าสู่ระบบ'";
+    if (msg.includes("Invalid login credentials")) return "อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
+    if (msg.includes("Email not confirmed")) return "อีเมลนี้ยังไม่ได้กดยืนยันตัวตน กรุณาตรวจสอบกล่องข้อความหรือกดส่งอีเมลยืนยันใหม่";
+    if (msg.includes("User already registered")) return "อีเมลนี้ถูกลงทะเบียนไว้แล้ว กรุณาเลือก 'เข้าสู่ระบบ' หรือกด 'ลืมรหัสผ่าน'";
     if (msg.includes("Password should be at least")) return "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
-    if (msg.includes("rate limit")) return "คุณทำรายการบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่";
+    if (msg.includes("rate limit") || msg.includes("over_email_send_rate_limit")) return "คุณทำรายการบ่อยเกินไป กรุณารอสักครู่ (ประมาณ 1 นาที) แล้วลองใหม่อีกครั้ง";
+    if (msg.includes("email_address_invalid")) return "รูปแบบอีเมลไม่ถูกต้อง กรุณาระบุอีเมลจริง";
     return msg || "เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง";
   };
+
+  const isUnconfirmedError = errorMsg.includes("ยังไม่ได้กดยืนยันตัวตน") || errorMsg.includes("Email not confirmed");
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +62,7 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
       setLoading(true);
       const supabase = createClient();
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
         setInfoMsg("เข้าสู่ระบบสำเร็จ!");
         onAuthSuccess();
@@ -67,7 +70,13 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
           onClose();
         }, 600);
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ 
+          email: email.trim(), 
+          password,
+          options: {
+            emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+          }
+        });
         if (error) throw error;
         if (data.session) {
           setInfoMsg("สมัครสมาชิกและเข้าสู่ระบบสำเร็จ!");
@@ -76,10 +85,61 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
             onClose();
           }, 600);
         } else {
-          setInfoMsg("สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบกล่องจดหมายอีเมลของคุณเพื่อยืนยันตัวตน");
+          setInfoMsg("สมัครสมาชิกสำเร็จ! หากระบบต้องการยืนยันอีเมล กรุณาตรวจสอบใน Inbox หรือ Spam ของคุณก่อนเข้าสู่ระบบ");
           setMode("login");
         }
       }
+    } catch (err: any) {
+      setErrorMsg(getThaiErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setInfoMsg("");
+
+    if (!email.trim()) {
+      setErrorMsg("กรุณากรอกอีเมลที่ต้องการรีเซ็ตรหัสผ่าน");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}` : undefined,
+      });
+      if (error) throw error;
+      setInfoMsg(`ส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปยัง ${email} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องข้อความหรือโฟลเดอร์ Spam`);
+    } catch (err: any) {
+      setErrorMsg(getThaiErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    if (!email.trim()) {
+      setErrorMsg("กรุณากรอกอีเมลที่ต้องการส่งลิงก์ยืนยัน");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      const supabase = createClient();
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: {
+          emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+        }
+      });
+      if (error) throw error;
+      setInfoMsg(`ส่งอีเมลยืนยันไปยัง ${email} อีกครั้งเรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย`);
     } catch (err: any) {
       setErrorMsg(getThaiErrorMessage(err));
     } finally {
@@ -113,7 +173,7 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
         </button>
 
         {/* Brand Icon Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-5">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center mb-3 shadow-lg shadow-indigo-500/25">
             {user ? <ShieldCheck className="w-7 h-7" /> : <User className="w-7 h-7" />}
           </div>
@@ -122,19 +182,23 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
               ? "บัญชีผู้ใช้งาน"
               : mode === "login"
               ? "เข้าสู่ระบบ"
-              : "สมัครสมาชิกใหม่"}
+              : mode === "register"
+              ? "สมัครสมาชิกใหม่"
+              : "ลืมรหัสผ่าน"}
           </h3>
           <p className="text-xs text-slate-500 mt-1">
             {user
               ? user.email
               : mode === "login"
-              ? "เข้าสู่ระบบ Money Planner เพื่อเริ่มจัดการรายรับ-รายจ่ายของคุณ"
-              : "สร้างบัญชีผู้ใช้ใหม่เพื่อบันทึกข้อมูลและซิงก์บนคลาวด์"}
+              ? "เข้าสู่ระบบ Money Planner เพื่อซิงก์ข้อมูลรายรับ-รายจ่ายบนคลาวด์"
+              : mode === "register"
+              ? "สร้างบัญชีผู้ใช้ใหม่เพื่อบันทึกและเชื่อมต่อข้อมูลของคุณ"
+              : "กรอกอีเมลของคุณเพื่อรับลิงก์สำหรับตั้งรหัสผ่านใหม่"}
           </p>
         </div>
 
-        {/* Mode Switcher Tabs (เมื่อยังไม่ได้ล็อกอิน) */}
-        {!user && (
+        {/* Mode Switcher Tabs (เมื่อยังไม่ได้ล็อกอิน และไม่ใช่หน้าลืมรหัส) */}
+        {!user && mode !== "forgot" && (
           <div className="flex rounded-xl bg-slate-100 p-1 mb-5">
             <button
               type="button"
@@ -171,15 +235,34 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs flex items-start gap-2 animate-in fade-in">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 leading-relaxed">{errorMsg}</div>
+          <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs animate-in fade-in">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
+              <div className="flex-1 leading-relaxed font-medium">{errorMsg}</div>
+            </div>
+
+            {/* ปุ่มกดส่งอีเมลยืนยันซ้ำ เมื่อติดปัญหา Email not confirmed */}
+            {isUnconfirmedError && (
+              <div className="mt-3 pt-2.5 border-t border-rose-200/60 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleResendEmail}
+                  disabled={loading}
+                  className="w-full py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <Send className="w-3.5 h-3.5" /> ส่งอีเมลยืนยันอีกครั้ง
+                </button>
+                <p className="text-[11px] text-rose-600/90 leading-tight">
+                  💡 หากเป็นผู้ดูแล Supabase สามารถปิด <b>Confirm email</b> ในหน้า Dashboard (Authentication &gt; Providers &gt; Email) เพื่อให้ล็อกอินได้ทันทีโดยไม่ต้องรอยืนยันอีเมล
+                </p>
+              </div>
+            )}
           </div>
         )}
 
         {/* Success Alert */}
         {infoMsg && (
-          <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2 animate-in fade-in">
+          <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2 animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-600" />
             <div className="flex-1 leading-relaxed font-medium">{infoMsg}</div>
           </div>
@@ -194,10 +277,20 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
                 เข้าสู่ระบบอยู่ขณะนี้
               </div>
               <div className="pt-1">
-                <p className="text-[11px] text-slate-400">อีเมลที่ใช้งาน</p>
-                <p className="text-sm font-semibold text-slate-800">{user.email}</p>
+                <p className="text-[11px] text-slate-400">อีเมลบัญชีผู้ใช้</p>
+                <p className="text-sm font-semibold text-slate-800 break-all">{user.email}</p>
+              </div>
+              <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-200/60 mt-2">
+                <span>สถานะคลาวด์: เชื่อมต่อแล้ว</span>
+                <button
+                  onClick={() => { onAuthSuccess(); setInfoMsg("ซิงก์ข้อมูลล่าสุดสำเร็จ!"); }}
+                  className="text-indigo-600 hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <RefreshCw className="w-3 h-3" /> ซิงก์ข้อมูล
+                </button>
               </div>
             </div>
+
             <button
               onClick={handleSignOut}
               disabled={loading}
@@ -206,6 +299,48 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
               {loading ? "กำลังออกจากระบบ..." : "ออกจากระบบ"}
             </button>
           </div>
+        ) : mode === "forgot" ? (
+          /* Forgot Password Form */
+          <form onSubmit={handleResetPassword} className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                อีเมลของคุณ
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  placeholder="yourname@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-sm shadow-md shadow-indigo-500/25 transition-all disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+            >
+              {loading ? "กำลังส่งลิงก์..." : "ส่งลิงก์รีเซ็ตรหัสผ่าน"}
+            </button>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setErrorMsg("");
+                  setInfoMsg("");
+                }}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
+              >
+                &larr; ย้อนกลับไปหน้าเข้าสู่ระบบ
+              </button>
+            </div>
+          </form>
         ) : (
           /* Login / Register Form */
           <form onSubmit={handleAuth} className="space-y-3.5">
@@ -227,9 +362,24 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                รหัสผ่าน (Password)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  รหัสผ่าน (Password)
+                </label>
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("forgot");
+                      setErrorMsg("");
+                      setInfoMsg("");
+                    }}
+                    className="text-[11px] text-indigo-600 hover:underline font-medium"
+                  >
+                    ลืมรหัสผ่าน?
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input

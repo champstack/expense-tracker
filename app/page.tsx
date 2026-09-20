@@ -488,12 +488,12 @@ export default function HomePage() {
     if (isOnline) {
       try {
         const supabase = createClient();
-        supabase.auth.getUser().then(({ data }) => setUser(data.user));
-        const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
+        supabase.auth.getUser().then((res: any) => setUser(res?.data?.user || null));
+        const { data: listener } = supabase.auth.onAuthStateChange((_e: any, session: any) => {
           setUser(session?.user || null);
           loadData();
         });
-        return () => listener.subscription.unsubscribe();
+        return () => listener?.subscription?.unsubscribe();
       } catch { /* ignore */ }
     }
   }, [loadData, isOnline]);
