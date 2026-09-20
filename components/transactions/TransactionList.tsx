@@ -175,13 +175,9 @@ export function TransactionList({
                 <h4 className="text-sm font-bold text-slate-700 mb-1">
                   ยังไม่มีรายการในเดือนนี้
                 </h4>
-                <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                <p className="text-xs text-slate-400 leading-relaxed">
                   เริ่มบันทึกรายรับหรือรายจ่าย โดยแตะที่ปุ่ม <span className="font-bold text-blue-600">+</span> ด้านล่างหน้าจอ
                 </p>
-                <div className="inline-flex items-center gap-1.5 text-[11px] text-indigo-600 bg-indigo-50/70 border border-indigo-100/80 px-3 py-1.5 rounded-full font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                  กดปุ่ม + ด้านล่างเพื่อเพิ่มรายการ
-                </div>
               </div>
             ) : (
               // กรณีค้นหาหรือกรองแล้วไม่พบ
