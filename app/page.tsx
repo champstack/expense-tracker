@@ -136,16 +136,6 @@ function TopBar({
         </button>
       </div>
 
-      {/* Status Badge */}
-      <button onClick={onOpenAuth} className={cn(
-        "hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors shrink-0",
-        user
-          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-          : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200"
-      )}>
-        <span className={cn("w-2 h-2 rounded-full", user ? "bg-emerald-500" : "bg-slate-400")} />
-        {user ? "Cloud Sync" : "Demo / Local"}
-      </button>
 
       {/* Categories Trigger on mobile & desktop */}
       {onOpenCategories && (
