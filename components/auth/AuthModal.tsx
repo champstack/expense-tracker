@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { X, Mail, Lock, ShieldCheck, User, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight, RefreshCw, Send, HelpCircle } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
@@ -20,6 +20,43 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
+
+  // ตรวจสอบความถูกต้องของรูปแบบอีเมล
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isEmailValid = email.trim() === "" || emailRegex.test(email.trim());
+
+  // ตรวจสอบคำสะกดผิดที่พบบ่อยใน Domain หรือ Username
+  const emailSuggestion = useMemo(() => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed.includes("@")) return null;
+    const parts = trimmed.split("@");
+    const userPart = parts[0];
+    const domainPart = parts[1];
+
+    // ตรวจจับ sumer vs summer
+    if (userPart === "sumer0649" && domainPart) {
+      return `summer0649@${domainPart}`;
+    }
+
+    const domainTypoMap: Record<string, string> = {
+      "gmai.com": "gmail.com",
+      "gamil.com": "gmail.com",
+      "gmial.com": "gmail.com",
+      "gmaill.com": "gmail.com",
+      "gmal.com": "gmail.com",
+      "gmail.co": "gmail.com",
+      "hotmial.com": "hotmail.com",
+      "hotmai.com": "hotmail.com",
+      "yaho.com": "yahoo.com",
+      "outlok.com": "outlook.com",
+    };
+
+    if (domainPart && domainTypoMap[domainPart]) {
+      return `${userPart}@${domainTypoMap[domainPart]}`;
+    }
+
+    return null;
+  }, [email]);
 
   if (!isOpen) return null;
 
@@ -356,9 +393,34 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 transition-all ${
+                    !isEmailValid && email.length > 3
+                      ? "border-rose-300 focus:ring-rose-500/20 focus:border-rose-500"
+                      : "border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  }`}
                 />
               </div>
+
+              {/* แจ้งเตือนรูปแบบอีเมล */}
+              {!isEmailValid && email.length > 3 && (
+                <p className="text-[11px] text-rose-500 mt-1.5 flex items-center gap-1 font-medium">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> รูปแบบอีเมลไม่ถูกต้อง (ต้องมี @ และโดเมน เช่น user@gmail.com)
+                </p>
+              )}
+
+              {/* ตรวจพบคำสะกดผิดที่พบบ่อย */}
+              {emailSuggestion && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center justify-between gap-2 animate-in fade-in">
+                  <span className="truncate">💡 คุณหมายถึง <b>{emailSuggestion}</b> หรือไม่?</span>
+                  <button
+                    type="button"
+                    onClick={() => setEmail(emailSuggestion)}
+                    className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-[11px] transition-colors shadow-2xs"
+                  >
+                    เปลี่ยนเป็นอีเมลนี้
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>
