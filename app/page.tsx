@@ -664,7 +664,14 @@ export default function HomePage() {
               <div className="space-y-5">
                 <StatCards totalIncome={totalIncome} totalExpense={totalExpense} netBalance={totalIncome - totalExpense} prevIncome={prevIncome} prevExpense={prevExpense} />
                 <MonthCompare currentTransactions={monthTx} prevTransactions={prevMonthTx} />
-                <ExpenseCharts transactions={monthTx} totalIncome={totalIncome} totalExpense={totalExpense} sixMonthData={sixMonthData} />
+                <ExpenseCharts
+                  transactions={monthTx}
+                  allTransactions={transactions}
+                  totalIncome={totalIncome}
+                  totalExpense={totalExpense}
+                  sixMonthData={sixMonthData}
+                  currentDate={currentDate}
+                />
 
                 {/* Recent Transactions */}
                 <div className="bg-white rounded-2xl border border-black/[0.06] shadow-sm p-5">
