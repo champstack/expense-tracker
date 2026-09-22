@@ -31,6 +31,8 @@ export function ExpenseCharts({
 }: ExpenseChartsProps) {
   // Toggle ระหว่าง "week" (สัปดาห์) กับ "month" (เดือน)
   const [period, setPeriod] = useState<"week" | "month">("month");
+  // Active hovered category for interactive Donut Chart & Legend
+  const [hoveredCategory, setHoveredCategory] = useState<{ name: string; value: number; color: string } | null>(null);
 
   // สัดส่วนรายจ่ายตามหมวดหมู่ (สำหรับ Donut Chart)
   const categoryData = useMemo(() => {
@@ -135,35 +137,99 @@ export function ExpenseCharts({
             <p className="text-xs text-slate-400">ยังไม่มีข้อมูลรายจ่ายในเดือนนี้</p>
           </div>
         ) : (
-          <div className="flex flex-col sm:flex-row items-center gap-5">
-            <div className="relative w-40 h-40 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            {/* Donut Chart with Interactive Center */}
+            <div className="relative w-44 h-44 flex-shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={72} paddingAngle={3} dataKey="value">
-                    {categoryData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={52}
+                    outerRadius={76}
+                    paddingAngle={3}
+                    dataKey="value"
+                    onMouseEnter={(_, index) => setHoveredCategory(categoryData[index])}
+                    onMouseLeave={() => setHoveredCategory(null)}
+                  >
+                    {categoryData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.color}
+                        stroke={hoveredCategory?.name === entry.name ? "#ffffff" : "none"}
+                        strokeWidth={hoveredCategory?.name === entry.name ? 2 : 0}
+                        className="cursor-pointer transition-all duration-150"
+                      />
+                    ))}
                   </Pie>
-                  <Tooltip formatter={(v: any) => [formatCurrency(Number(v)), "ยอดเงิน"]} />
+                  <Tooltip content={() => null} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-[10px] text-slate-400">รวมจ่าย</span>
-                <span className="text-xs font-bold text-slate-700">{formatCurrency(totalExpense)}</span>
+              {/* Dynamic Center Text — changes on hover without overlapping tooltip */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2 text-center transition-all duration-150">
+                {hoveredCategory ? (
+                  <>
+                    <span
+                      className="text-[11px] font-semibold truncate max-w-[85px] leading-tight"
+                      style={{ color: hoveredCategory.color }}
+                    >
+                      {hoveredCategory.name}
+                    </span>
+                    <span className="text-xs font-bold text-slate-900 tabular-nums mt-0.5">
+                      {formatCurrency(hoveredCategory.value)}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      {totalExpense > 0 ? Math.round((hoveredCategory.value / totalExpense) * 100) : 0}%
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] text-slate-400 font-medium">รวมจ่าย</span>
+                    <span className="text-xs font-bold text-slate-800 tabular-nums leading-tight">
+                      {formatCurrency(totalExpense)}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
-            <div className="flex-1 w-full space-y-2 overflow-y-auto max-h-44 pr-1">
+
+            {/* Category Breakdown List — expanded height to show all categories */}
+            <div className="flex-1 w-full space-y-2.5 overflow-y-auto max-h-[300px] pr-1.5">
               {categoryData.map((cat, i) => {
                 const pct = totalExpense > 0 ? Math.round((cat.value / totalExpense) * 100) : 0;
+                const isHovered = hoveredCategory?.name === cat.name;
                 return (
-                  <div key={i} className="text-xs">
+                  <div
+                    key={i}
+                    className={`text-xs rounded-lg p-1 -mx-1 transition-colors cursor-pointer ${
+                      isHovered ? "bg-slate-50" : "hover:bg-slate-50/70"
+                    }`}
+                    onMouseEnter={() => setHoveredCategory(cat)}
+                    onMouseLeave={() => setHoveredCategory(null)}
+                  >
                     <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-                        <span className="font-medium text-slate-700 truncate max-w-[100px]">{cat.name}</span>
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-transform"
+                          style={{
+                            backgroundColor: cat.color,
+                            transform: isHovered ? "scale(1.2)" : "scale(1)",
+                          }}
+                        />
+                        <span className={`font-medium truncate ${isHovered ? "text-slate-900 font-semibold" : "text-slate-700"}`}>
+                          {cat.name}
+                        </span>
                       </div>
-                      <span className="text-slate-600 font-semibold tabular-nums">{formatCurrency(cat.value)}</span>
+                      <span className="text-slate-700 font-semibold tabular-nums flex-shrink-0">
+                        {formatCurrency(cat.value)}
+                      </span>
                     </div>
                     <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: cat.color }} />
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{ width: `${pct}%`, backgroundColor: cat.color }}
+                      />
                     </div>
                   </div>
                 );

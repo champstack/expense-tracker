@@ -20,6 +20,9 @@ import {
   Smartphone,
   BookOpen,
   CircleDot,
+  Landmark,
+  Building2,
+  CreditCard,
   LucideIcon,
 } from "lucide-react";
 
@@ -42,6 +45,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Smartphone,
   BookOpen,
   CircleDot,
+  Landmark,
+  Building2,
+  CreditCard,
 };
 
 interface CategoryIconProps {

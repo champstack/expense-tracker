@@ -4,13 +4,15 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { StatCards } from "@/components/dashboard/StatCards";
 import { ExpenseCharts } from "@/components/dashboard/ExpenseCharts";
 import { MonthCompare } from "@/components/dashboard/MonthCompare";
+import { AccountCards } from "@/components/dashboard/AccountCards";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { TransactionFormModal } from "@/components/transactions/TransactionFormModal";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { CategoryModal } from "@/components/categories/CategoryModal";
+import { AccountModal } from "@/components/accounts/AccountModal";
 import { DataService } from "@/lib/dataService";
-import { Transaction, Category, TransactionType, DEFAULT_CATEGORIES } from "@/types/database";
+import { Transaction, Category, Account, TransactionType, DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS } from "@/types/database";
 import { formatCurrency, formatThaiDate, formatThaiMonthYear, THAI_MONTHS_SHORT } from "@/lib/utils";
 import { isSupabaseConfigured, createClient } from "@/lib/supabase/client";
 import { exportTransactionsToCsv } from "@/lib/exportCsv";
@@ -18,18 +20,19 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import {
   LayoutDashboard, Calendar, ReceiptText, PiggyBank, Plus, Wallet,
   ChevronLeft, ChevronRight, User, CheckCircle2, AlertCircle,
-  Download, ArrowRight, Settings, RotateCcw, Tag,
+  Download, ArrowRight, Settings, RotateCcw, Tag, CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TabType = "dashboard" | "calendar" | "transactions" | "budget";
 
 // ────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────
 // Sidebar (Desktop only)
 // ────────────────────────────────────────────────────────────
-function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, user }: {
+function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, onOpenAccounts, onAdd, user }: {
   active: TabType; onChange: (t: TabType) => void; isOnline: boolean; onOpenAuth: () => void;
-  onOpenCategories: () => void; user: any;
+  onOpenCategories: () => void; onOpenAccounts?: () => void; onAdd: () => void; user: any;
 }) {
   const items: { id: TabType; icon: React.ReactNode; label: string }[] = [
     { id: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: "ภาพรวม (Dashboard)" },
@@ -48,8 +51,19 @@ function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, use
         <span className="font-bold text-white text-base tracking-tight">Money Planner</span>
       </div>
 
+      {/* Main Add Button in Sidebar */}
+      <div className="px-3 pt-4">
+        <button
+          onClick={onAdd}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-white text-indigo-600 font-bold text-sm shadow-md hover:bg-indigo-50 hover:shadow-lg transition-all"
+        >
+          <Plus className="w-4 h-4 stroke-[3]" />
+          บันทึกรายการใหม่
+        </button>
+      </div>
+
       {/* Nav items */}
-      <nav className="flex flex-col gap-1 flex-1 px-3 pt-4">
+      <nav className="flex flex-col gap-1 flex-1 px-3 pt-3">
         {items.map((item) => (
           <button
             key={item.id}
@@ -57,7 +71,7 @@ function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, use
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left w-full",
               active === item.id
-                ? "bg-white text-indigo-600 shadow-md font-semibold"
+                ? "bg-white/20 text-white shadow-xs font-semibold backdrop-blur-xs"
                 : "text-indigo-100 hover:bg-white/15 hover:text-white"
             )}
           >
@@ -73,6 +87,15 @@ function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, use
         >
           <Tag className="w-5 h-5" />
           จัดการหมวดหมู่
+        </button>
+
+        {/* Accounts Manager */}
+        <button
+          onClick={onOpenAccounts}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-indigo-100 hover:bg-white/15 hover:text-white transition-all text-left w-full"
+        >
+          <CreditCard className="w-5 h-5" />
+          บัญชี & กระเป๋าเงิน
         </button>
       </nav>
 
@@ -98,10 +121,10 @@ function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, use
 }
 
 function TopBar({
-  activeTab, currentDate, onDateChange, onAdd, onOpenAuth, onOpenCategories, isOnline, user,
+  activeTab, currentDate, onDateChange, onAdd, onOpenAuth, onOpenCategories, onOpenAccounts, isOnline, user,
 }: {
   activeTab: TabType; currentDate: Date; onDateChange: (d: Date) => void;
-  onAdd?: () => void; onOpenAuth: () => void; onOpenCategories?: () => void;
+  onAdd: () => void; onOpenAuth: () => void; onOpenCategories?: () => void; onOpenAccounts?: () => void;
   isOnline: boolean; user: any;
 }) {
   const y = currentDate.getFullYear(), m = currentDate.getMonth();
@@ -136,6 +159,25 @@ function TopBar({
         </button>
       </div>
 
+      {/* ปุ่มเพิ่มรายการเด่นชัดบนแถบบน */}
+      <button
+        onClick={onAdd}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm shadow-indigo-500/20 transition-all shrink-0"
+      >
+        <Plus className="w-4 h-4 stroke-[2.5]" />
+        <span className="hidden sm:inline">เพิ่มรายการ</span>
+      </button>
+
+      {/* Accounts Trigger on mobile & desktop */}
+      {onOpenAccounts && (
+        <button
+          onClick={onOpenAccounts}
+          className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors shrink-0"
+          title="จัดการบัญชี"
+        >
+          <CreditCard className="w-4 h-4" />
+        </button>
+      )}
 
       {/* Categories Trigger on mobile & desktop */}
       {onOpenCategories && (
@@ -218,6 +260,8 @@ function BudgetView({ transactions, categories, currentMonth }: {
   const [editBudget, setEditBudget] = useState<{ cat_id: string; value: string }>({ cat_id: "", value: "" });
   const [newGoal, setNewGoal] = useState({ name: "", targetAmount: "", currentAmount: "0", deadline: "", color: GOAL_COLORS[0], icon: GOAL_ICONS[0] });
   const [addAmounts, setAddAmounts] = useState<Record<string, string>>({});
+  const [depositGoal, setDepositGoal] = useState<SavingsGoal | null>(null);
+  const [depositAmount, setDepositAmount] = useState("");
 
   useEffect(() => {
     setBudgets(BudgetStorage.getBudgets().budgets);
@@ -342,36 +386,84 @@ function BudgetView({ transactions, categories, currentMonth }: {
             <p className="text-xs text-slate-400">ตั้งเป้าหมายเพื่อสร้างแรงจูงใจในการออม</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-3">
             {goals.map((goal) => {
-              const pct = goal.targetAmount > 0 ? Math.min(Math.round((goal.currentAmount / goal.targetAmount) * 100), 100) : 0;
+              const pct =
+                goal.targetAmount > 0
+                  ? Math.min(Math.round((goal.currentAmount / goal.targetAmount) * 100), 100)
+                  : 0;
+              const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
+
               return (
-                <div key={goal.id} className="rounded-xl border border-black/[0.05] p-4">
-                  <div className="flex items-start justify-between mb-3">
+                <div
+                  key={goal.id}
+                  className="rounded-xl border border-black/[0.05] p-4 hover:border-slate-200 transition-colors"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-lg" style={{ backgroundColor: goal.color }}>
-                        <CategoryIcon name={goal.icon} size={18} />
+                      <div
+                        className="w-8 h-8 rounded-lg text-white flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: goal.color }}
+                      >
+                        <CategoryIcon name={goal.icon} size={16} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-slate-800">{goal.name}</p>
-                        {goal.deadline && <p className="text-[11px] text-slate-400">ถึง {formatThaiDate(goal.deadline, true)}</p>}
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-800">{goal.name}</p>
+                          {goal.deadline && (
+                            <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                              ถึง {formatThaiDate(goal.deadline, false)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 tabular-nums">
+                          {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
+                          {remaining > 0 && (
+                            <span className="ml-2 text-slate-400 font-normal">
+                              (ขาดอีก {formatCurrency(remaining)})
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </div>
-                    <button onClick={() => { if (confirm("ลบเป้าหมายนี้?")) { BudgetStorage.deleteGoal(goal.id); setGoals(BudgetStorage.getGoals()); } }} className="text-slate-300 hover:text-rose-400 transition-colors text-xs p-1">✕</button>
+
+                    {/* Right Controls: Deposit Button, Status & Actions */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setDepositGoal(goal);
+                          setDepositAmount("");
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold transition-colors shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> ออมเงิน
+                      </button>
+
+
+                      <button
+                        onClick={() => {
+                          if (confirm(`คุณต้องการลบเป้าหมาย "${goal.name}" ใช่หรือไม่?`)) {
+                            BudgetStorage.deleteGoal(goal.id);
+                            setGoals(BudgetStorage.getGoals());
+                          }
+                        }}
+                        className="p-1 text-slate-300 hover:text-rose-500 rounded-lg transition-colors text-xs ml-1"
+                        title="ลบเป้าหมาย"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-slate-500 tabular-nums">{formatCurrency(goal.currentAmount)}</span>
-                    <span className="font-bold text-slate-800 tabular-nums">{formatCurrency(goal.targetAmount)}</span>
+
+                  {/* Progress Bar (Full Width, same as Budget) */}
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, backgroundColor: goal.color }}
+                    />
                   </div>
-                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden mb-2">
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: goal.color }} />
-                  </div>
-                  <p className="text-[11px] text-slate-400 mb-2">{pct}% สำเร็จแล้ว</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <input type="number" placeholder="เพิ่มเงิน..." value={addAmounts[goal.id] || ""} onChange={(e) => setAddAmounts((p) => ({ ...p, [goal.id]: e.target.value }))}
-                      className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    <button onClick={() => handleAddGoalAmount(goal.id)} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors">+เพิ่ม</button>
-                  </div>
+
+                  <p className="text-[11px] text-slate-400 mt-1 text-right">{pct}% สำเร็จแล้ว</p>
                 </div>
               );
             })}
@@ -469,6 +561,108 @@ function BudgetView({ transactions, categories, currentMonth }: {
           </div>
         </div>
       )}
+
+      {/* Deposit Money Modal */}
+      {depositGoal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-black/[0.06] w-full max-w-sm p-5 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-7 h-7 rounded-lg text-white flex items-center justify-center"
+                  style={{ backgroundColor: depositGoal.color }}
+                >
+                  <CategoryIcon name={depositGoal.icon} size={14} />
+                </div>
+                <h3 className="font-bold text-slate-800 text-sm">
+                  ออมเงิน: {depositGoal.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setDepositGoal(null)}
+                className="text-slate-400 hover:text-slate-700 text-sm p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-3">
+              ปัจจุบัน {formatCurrency(depositGoal.currentAmount)} / {formatCurrency(depositGoal.targetAmount)}
+            </p>
+
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                จำนวนเงินที่ต้องการออมเพิ่ม
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  placeholder="0"
+                  autoFocus
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const amt = parseFloat(depositAmount);
+                      if (!isNaN(amt) && amt > 0) {
+                        BudgetStorage.updateGoalAmount(depositGoal.id, depositGoal.currentAmount + amt);
+                        setGoals(BudgetStorage.getGoals());
+                        setDepositGoal(null);
+                        setDepositAmount("");
+                      }
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 tabular-nums"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                  ฿
+                </span>
+              </div>
+            </div>
+
+            {/* Quick chips: +100, +500, +1,000, +2,000 */}
+            <div className="grid grid-cols-4 gap-1.5 mb-4">
+              {[100, 500, 1000, 2000].map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => {
+                    const cur = parseFloat(depositAmount) || 0;
+                    setDepositAmount((cur + val).toString());
+                  }}
+                  className="py-1 text-center bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200/80 transition-colors"
+                >
+                  +{val.toLocaleString()}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDepositGoal(null)}
+                className="flex-1 py-2 text-xs font-semibold text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const amt = parseFloat(depositAmount);
+                  if (isNaN(amt) || amt <= 0) return;
+                  BudgetStorage.updateGoalAmount(depositGoal.id, depositGoal.currentAmount + amt);
+                  setGoals(BudgetStorage.getGoals());
+                  setDepositGoal(null);
+                  setDepositAmount("");
+                }}
+                className="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-500/20 transition-all"
+              >
+                ยืนยันการออม
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -481,11 +675,13 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formInitialDate, setFormInitialDate] = useState<string>();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [isAccountsOpen, setIsAccountsOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [user, setUser] = useState<any>(null);
 
@@ -494,9 +690,14 @@ export default function HomePage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [cats, txs] = await Promise.all([DataService.getCategories(), DataService.getTransactions()]);
+      const [cats, txs, accs] = await Promise.all([
+        DataService.getCategories(),
+        DataService.getTransactions(),
+        DataService.getAccounts(),
+      ]);
       setCategories(cats);
       setTransactions(txs);
+      setAccounts(accs);
     } finally {
       setLoading(false);
     }
@@ -523,7 +724,10 @@ export default function HomePage() {
   const monthTx = useMemo(() =>
     transactions.filter((t) => {
       if (!t.transaction_date) return false;
-      const [ty, tm] = t.transaction_date.split("-").map(Number);
+      const parts = t.transaction_date.split("-");
+      if (parts.length < 2) return false;
+      const ty = parseInt(parts[0], 10);
+      const tm = parseInt(parts[1], 10);
       return ty === y && tm - 1 === m;
     }), [transactions, y, m]);
 
@@ -533,15 +737,30 @@ export default function HomePage() {
     const py = prev.getFullYear(), pm = prev.getMonth();
     return transactions.filter((t) => {
       if (!t.transaction_date) return false;
-      const [ty, tm] = t.transaction_date.split("-").map(Number);
+      const parts = t.transaction_date.split("-");
+      if (parts.length < 2) return false;
+      const ty = parseInt(parts[0], 10);
+      const tm = parseInt(parts[1], 10);
       return ty === py && tm - 1 === pm;
     });
   }, [transactions, y, m]);
 
-  const totalIncome = useMemo(() => monthTx.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0), [monthTx]);
-  const totalExpense = useMemo(() => monthTx.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0), [monthTx]);
-  const prevIncome = useMemo(() => prevMonthTx.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0), [prevMonthTx]);
-  const prevExpense = useMemo(() => prevMonthTx.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0), [prevMonthTx]);
+  const totalIncome = useMemo(() =>
+    monthTx.filter((t) => t.type === "income").reduce((s, t) => s + (parseFloat(String(t.amount)) || 0), 0),
+    [monthTx]
+  );
+  const totalExpense = useMemo(() =>
+    monthTx.filter((t) => t.type === "expense").reduce((s, t) => s + (parseFloat(String(t.amount)) || 0), 0),
+    [monthTx]
+  );
+  const prevIncome = useMemo(() =>
+    prevMonthTx.filter((t) => t.type === "income").reduce((s, t) => s + (parseFloat(String(t.amount)) || 0), 0),
+    [prevMonthTx]
+  );
+  const prevExpense = useMemo(() =>
+    prevMonthTx.filter((t) => t.type === "expense").reduce((s, t) => s + (parseFloat(String(t.amount)) || 0), 0),
+    [prevMonthTx]
+  );
 
   // 6-month data สำหรับ Area Chart
   const sixMonthData = useMemo(() => {
@@ -556,24 +775,49 @@ export default function HomePage() {
       });
       result.push({
         month: THAI_MONTHS_SHORT[dm],
-        income: monthTxs.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0),
-        expense: monthTxs.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0),
+        income: monthTxs.filter((t) => t.type === "income").reduce((s, t) => s + (parseFloat(String(t.amount)) || 0), 0),
+        expense: monthTxs.filter((t) => t.type === "expense").reduce((s, t) => s + (parseFloat(String(t.amount)) || 0), 0),
       });
     }
     return result;
   }, [transactions, y, m]);
 
   const handleBatchSubmit = async (items: any[]) => {
-    await DataService.addMultipleTransactions(items);
+    const savedTxs = await DataService.addMultipleTransactions(items);
+    // ปรับมุมมองเดือนให้ตรงกับวันที่ทำรายการโดยอัตโนมัติ เพื่อให้ยอดเงินขึ้นทันที
+    if (items.length > 0 && items[0].transaction_date) {
+      const parts = items[0].transaction_date.split("-");
+      if (parts.length >= 2) {
+        const ty = parseInt(parts[0], 10);
+        const tm = parseInt(parts[1], 10);
+        if (!isNaN(ty) && !isNaN(tm)) {
+          setCurrentDate(new Date(ty, tm - 1, 1));
+        }
+      }
+    }
+    // อัปเดตรายการลงในหน้าจอทันที เพื่อให้ยอดเงินและประวัติแสดงผลทันที
+    if (savedTxs && savedTxs.length > 0) {
+      setTransactions((prev) => {
+        const savedIds = new Set(savedTxs.map((t) => t.id));
+        return [...savedTxs, ...prev.filter((t) => !savedIds.has(t.id))];
+      });
+    }
     await loadData();
   };
-  const handleDelete = async (id: string) => { await DataService.deleteTransaction(id); await loadData(); };
+  const handleDelete = async (id: string) => {
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    await DataService.deleteTransaction(id);
+    await loadData();
+  };
   const handleEditTransaction = (tx: Transaction) => {
     setEditingTransaction(tx);
     setIsFormOpen(true);
   };
   const handleUpdateTransaction = async (id: string, item: any) => {
-    await DataService.updateTransaction(id, item);
+    const updated = await DataService.updateTransaction(id, item);
+    if (updated) {
+      setTransactions((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    }
     await loadData();
     setEditingTransaction(null);
   };
@@ -599,6 +843,7 @@ export default function HomePage() {
         onAdd={openAdd}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenCategories={() => setIsCategoriesOpen(true)}
+        onOpenAccounts={() => setIsAccountsOpen(true)}
         isOnline={isOnline}
         user={user}
       />
@@ -610,6 +855,8 @@ export default function HomePage() {
           isOnline={isOnline}
           onOpenAuth={() => setIsAuthOpen(true)}
           onOpenCategories={() => setIsCategoriesOpen(true)}
+          onOpenAccounts={() => setIsAccountsOpen(true)}
+          onAdd={openAdd}
           user={user}
         />
 
@@ -653,6 +900,11 @@ export default function HomePage() {
             {activeTab === "dashboard" && (
               <div className="space-y-5">
                 <StatCards totalIncome={totalIncome} totalExpense={totalExpense} netBalance={totalIncome - totalExpense} prevIncome={prevIncome} prevExpense={prevExpense} />
+                <AccountCards
+                  accounts={accounts}
+                  allTransactions={transactions}
+                  onOpenAccountsModal={() => setIsAccountsOpen(true)}
+                />
                 <MonthCompare currentTransactions={monthTx} prevTransactions={prevMonthTx} />
                 <ExpenseCharts
                   transactions={monthTx}
@@ -680,7 +932,15 @@ export default function HomePage() {
                           <CategoryIcon name={tx.category?.icon || "CircleDot"} size={16} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 truncate">{tx.category?.name || "ไม่ระบุ"}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-slate-800 truncate">{tx.category?.name || "ไม่ระบุ"}</p>
+                            {tx.account && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                <CategoryIcon name={tx.account.icon || "Wallet"} size={10} />
+                                {tx.account.name}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-400 truncate">{formatThaiDate(tx.transaction_date, false)}{tx.note ? ` • ${tx.note}` : ""}</p>
                         </div>
                         <span className={cn("font-bold text-sm tabular-nums", tx.type === "income" ? "text-emerald-600" : "text-rose-500")}>
@@ -717,6 +977,7 @@ export default function HomePage() {
                 <TransactionList
                   transactions={monthTx}
                   categories={categories}
+                  accounts={accounts}
                   onDelete={handleDelete}
                   onEdit={handleEditTransaction}
                   onOpenNewModal={openAdd}
@@ -743,6 +1004,7 @@ export default function HomePage() {
           setEditingTransaction(null);
         }}
         categories={categories}
+        accounts={accounts}
         initialDate={formInitialDate}
         editingTransaction={editingTransaction}
         onUpdateTransaction={handleUpdateTransaction}
@@ -755,6 +1017,19 @@ export default function HomePage() {
         categories={categories}
         onAddCategory={async (newCat) => {
           await DataService.addCategory(newCat);
+          await loadData();
+        }}
+      />
+      <AccountModal
+        isOpen={isAccountsOpen}
+        onClose={() => setIsAccountsOpen(false)}
+        accounts={accounts}
+        onAddAccount={async (newAcc) => {
+          await DataService.addAccount(newAcc);
+          await loadData();
+        }}
+        onDeleteAccount={async (id) => {
+          await DataService.deleteAccount(id);
           await loadData();
         }}
       />

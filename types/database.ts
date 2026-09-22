@@ -11,10 +11,31 @@ export interface Category {
   created_at?: string;
 }
 
+export interface Account {
+  id: string;
+  user_id?: string;
+  name: string;
+  type: "cash" | "bank" | "credit" | "e-wallet" | "other";
+  balance?: number;
+  initial_balance?: number;
+  icon: string;
+  color: string;
+  is_default?: boolean;
+  created_at?: string;
+}
+
+export const DEFAULT_ACCOUNTS: Account[] = [
+  { id: "acc-cash", name: "เงินสด (Cash)", type: "cash", icon: "Banknote", color: "#10B981", initial_balance: 0, is_default: true },
+  { id: "acc-kbank", name: "ธนาคารกสิกรไทย (K-Bank)", type: "bank", icon: "Landmark", color: "#059669", initial_balance: 0, is_default: true },
+  { id: "acc-scb", name: "ธนาคารไทยพาณิชย์ (SCB)", type: "bank", icon: "Building2", color: "#7C3AED", initial_balance: 0, is_default: true },
+  { id: "acc-wallet", name: "TrueMoney Wallet", type: "e-wallet", icon: "Smartphone", color: "#F97316", initial_balance: 0, is_default: true },
+];
+
 export interface Transaction {
   id: string;
   user_id?: string;
   category_id: string;
+  account_id?: string; // บัญชีที่รับหรือจ่ายเงิน
   type: TransactionType;
   amount: number;
   transaction_date: string; // YYYY-MM-DD
@@ -22,6 +43,7 @@ export interface Transaction {
   created_at?: string;
   // joined fields
   category?: Category;
+  account?: Account;
 }
 
 export interface MonthlySummary {
