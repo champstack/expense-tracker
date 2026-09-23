@@ -9,8 +9,8 @@ import { CalendarView } from "@/components/calendar/CalendarView";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { TransactionFormModal } from "@/components/transactions/TransactionFormModal";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { CategoryModal } from "@/components/categories/CategoryModal";
-import { AccountModal } from "@/components/accounts/AccountModal";
+import { CategoryView } from "@/components/categories/CategoryView";
+import { AccountView } from "@/components/accounts/AccountView";
 import { DataService } from "@/lib/dataService";
 import { Transaction, Category, Account, TransactionType, DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS } from "@/types/database";
 import { formatCurrency, formatThaiDate, formatThaiMonthYear, THAI_MONTHS_SHORT } from "@/lib/utils";
@@ -24,21 +24,23 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type TabType = "dashboard" | "calendar" | "transactions" | "budget";
+type TabType = "dashboard" | "calendar" | "transactions" | "budget" | "categories" | "accounts";
 
 // ────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────
 // Sidebar (Desktop only)
 // ────────────────────────────────────────────────────────────
-function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, onOpenAccounts, onAdd, user }: {
+function Sidebar({ active, onChange, isOnline, onOpenAuth, onAdd, user }: {
   active: TabType; onChange: (t: TabType) => void; isOnline: boolean; onOpenAuth: () => void;
-  onOpenCategories: () => void; onOpenAccounts?: () => void; onAdd: () => void; user: any;
+  onAdd: () => void; user: any;
 }) {
   const items: { id: TabType; icon: React.ReactNode; label: string }[] = [
     { id: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: "ภาพรวม (Dashboard)" },
     { id: "calendar", icon: <Calendar className="w-5 h-5" />, label: "ปฏิทินรายรับ-จ่าย" },
     { id: "transactions", icon: <ReceiptText className="w-5 h-5" />, label: "บันทึกรายการ" },
     { id: "budget", icon: <PiggyBank className="w-5 h-5" />, label: "ตั้งงบประมาณ" },
+    { id: "categories", icon: <Tag className="w-5 h-5" />, label: "จัดการหมวดหมู่" },
+    { id: "accounts", icon: <CreditCard className="w-5 h-5" />, label: "บัญชี & กระเป๋าเงิน" },
   ];
   return (
     <aside className="hidden md:flex flex-col w-[230px] min-h-0 shrink-0"
@@ -79,24 +81,6 @@ function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, onO
             {item.label}
           </button>
         ))}
-
-        {/* Categories Manager */}
-        <button
-          onClick={onOpenCategories}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-indigo-100 hover:bg-white/15 hover:text-white transition-all text-left w-full mt-2"
-        >
-          <Tag className="w-5 h-5" />
-          จัดการหมวดหมู่
-        </button>
-
-        {/* Accounts Manager */}
-        <button
-          onClick={onOpenAccounts}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-indigo-100 hover:bg-white/15 hover:text-white transition-all text-left w-full"
-        >
-          <CreditCard className="w-5 h-5" />
-          บัญชี & กระเป๋าเงิน
-        </button>
       </nav>
 
       {/* Bottom: User status / Login */}
@@ -121,10 +105,10 @@ function Sidebar({ active, onChange, isOnline, onOpenAuth, onOpenCategories, onO
 }
 
 function TopBar({
-  activeTab, currentDate, onDateChange, onAdd, onOpenAuth, onOpenCategories, onOpenAccounts, isOnline, user,
+  activeTab, currentDate, onDateChange, onAdd, onOpenAuth, onChangeTab, isOnline, user,
 }: {
   activeTab: TabType; currentDate: Date; onDateChange: (d: Date) => void;
-  onAdd: () => void; onOpenAuth: () => void; onOpenCategories?: () => void; onOpenAccounts?: () => void;
+  onAdd: () => void; onOpenAuth: () => void; onChangeTab: (t: TabType) => void;
   isOnline: boolean; user: any;
 }) {
   const y = currentDate.getFullYear(), m = currentDate.getMonth();
@@ -133,6 +117,8 @@ function TopBar({
     calendar: "ปฏิทินรายรับ-จ่าย",
     transactions: "บันทึกรายการ",
     budget: "ตั้งงบประมาณ",
+    categories: "จัดการหมวดหมู่",
+    accounts: "บัญชี & กระเป๋าเงิน",
   };
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-100 h-14 flex items-center px-4 sm:px-5 gap-2 sm:gap-4 shrink-0 shadow-sm">
@@ -169,26 +155,28 @@ function TopBar({
       </button>
 
       {/* Accounts Trigger on mobile & desktop */}
-      {onOpenAccounts && (
-        <button
-          onClick={onOpenAccounts}
-          className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors shrink-0"
-          title="จัดการบัญชี"
-        >
-          <CreditCard className="w-4 h-4" />
-        </button>
-      )}
+      <button
+        onClick={() => onChangeTab("accounts")}
+        className={cn(
+          "p-1.5 sm:p-2 rounded-xl transition-colors shrink-0",
+          activeTab === "accounts" ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:text-indigo-600 hover:bg-slate-100"
+        )}
+        title="จัดการบัญชี & กระเป๋าเงิน"
+      >
+        <CreditCard className="w-4 h-4" />
+      </button>
 
       {/* Categories Trigger on mobile & desktop */}
-      {onOpenCategories && (
-        <button
-          onClick={onOpenCategories}
-          className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors shrink-0"
-          title="จัดการหมวดหมู่"
-        >
-          <Tag className="w-4 h-4" />
-        </button>
-      )}
+      <button
+        onClick={() => onChangeTab("categories")}
+        className={cn(
+          "p-1.5 sm:p-2 rounded-xl transition-colors shrink-0",
+          activeTab === "categories" ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:text-indigo-600 hover:bg-slate-100"
+        )}
+        title="จัดการหมวดหมู่"
+      >
+        <Tag className="w-4 h-4" />
+      </button>
 
       {/* User Avatar / Login Button */}
       <button
@@ -680,8 +668,6 @@ export default function HomePage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formInitialDate, setFormInitialDate] = useState<string>();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
-  const [isAccountsOpen, setIsAccountsOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [user, setUser] = useState<any>(null);
 
@@ -832,7 +818,14 @@ export default function HomePage() {
     setIsFormOpen(true);
   };
 
-  const tabLabel = { dashboard: "ภาพรวมการเงิน", calendar: "ปฏิทินรายรับ-จ่าย", transactions: "บันทึกรายการ & ประวัติ", budget: "งบประมาณ & เป้าหมาย" };
+  const tabLabel = {
+    dashboard: "ภาพรวมการเงิน",
+    calendar: "ปฏิทินรายรับ-จ่าย",
+    transactions: "บันทึกรายการ & ประวัติ",
+    budget: "งบประมาณ & เป้าหมาย",
+    categories: "จัดการหมวดหมู่",
+    accounts: "บัญชี & กระเป๋าเงิน",
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -842,8 +835,7 @@ export default function HomePage() {
         onDateChange={setCurrentDate}
         onAdd={openAdd}
         onOpenAuth={() => setIsAuthOpen(true)}
-        onOpenCategories={() => setIsCategoriesOpen(true)}
-        onOpenAccounts={() => setIsAccountsOpen(true)}
+        onChangeTab={setActiveTab}
         isOnline={isOnline}
         user={user}
       />
@@ -854,8 +846,6 @@ export default function HomePage() {
           onChange={setActiveTab}
           isOnline={isOnline}
           onOpenAuth={() => setIsAuthOpen(true)}
-          onOpenCategories={() => setIsCategoriesOpen(true)}
-          onOpenAccounts={() => setIsAccountsOpen(true)}
           onAdd={openAdd}
           user={user}
         />
@@ -903,7 +893,7 @@ export default function HomePage() {
                 <AccountCards
                   accounts={accounts}
                   allTransactions={transactions}
-                  onOpenAccountsModal={() => setIsAccountsOpen(true)}
+                  onOpenAccountsModal={() => setActiveTab("accounts")}
                 />
                 <MonthCompare currentTransactions={monthTx} prevTransactions={prevMonthTx} />
                 <ExpenseCharts
@@ -989,6 +979,37 @@ export default function HomePage() {
             {activeTab === "budget" && (
               <BudgetView transactions={monthTx} categories={categories} currentMonth={currentDate} />
             )}
+
+            {/* Tab: Categories */}
+            {activeTab === "categories" && (
+              <CategoryView
+                categories={categories}
+                onAddCategory={async (newCat) => {
+                  await DataService.addCategory(newCat);
+                  await loadData();
+                }}
+                onDeleteCategory={async (id) => {
+                  await DataService.deleteCategory(id);
+                  await loadData();
+                }}
+              />
+            )}
+
+            {/* Tab: Accounts */}
+            {activeTab === "accounts" && (
+              <AccountView
+                accounts={accounts}
+                allTransactions={transactions}
+                onAddAccount={async (newAcc) => {
+                  await DataService.addAccount(newAcc);
+                  await loadData();
+                }}
+                onDeleteAccount={async (id) => {
+                  await DataService.deleteAccount(id);
+                  await loadData();
+                }}
+              />
+            )}
           </div>
         </main>
       </div>
@@ -1011,28 +1032,6 @@ export default function HomePage() {
         onSubmitBatch={handleBatchSubmit}
       />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} user={user} onAuthSuccess={loadData} />
-      <CategoryModal
-        isOpen={isCategoriesOpen}
-        onClose={() => setIsCategoriesOpen(false)}
-        categories={categories}
-        onAddCategory={async (newCat) => {
-          await DataService.addCategory(newCat);
-          await loadData();
-        }}
-      />
-      <AccountModal
-        isOpen={isAccountsOpen}
-        onClose={() => setIsAccountsOpen(false)}
-        accounts={accounts}
-        onAddAccount={async (newAcc) => {
-          await DataService.addAccount(newAcc);
-          await loadData();
-        }}
-        onDeleteAccount={async (id) => {
-          await DataService.deleteAccount(id);
-          await loadData();
-        }}
-      />
     </div>
   );
 }

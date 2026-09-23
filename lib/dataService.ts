@@ -104,6 +104,26 @@ export class DataService {
     return newCat;
   }
 
+  static async deleteCategory(id: string): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    if (user && isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        const { error } = await supabase.from("categories").delete().eq("id", id);
+        if (!error) return true;
+      } catch (err) {
+        console.warn("Supabase deleteCategory error:", err);
+      }
+    }
+
+    const current = this.getStoredCategories();
+    const updated = current.filter((c) => c.id !== id);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_CAT, JSON.stringify(updated));
+    }
+    return true;
+  }
+
   static async getAccounts(): Promise<Account[]> {
     const user = await this.getCurrentUser();
     if (user && isSupabaseConfigured()) {
