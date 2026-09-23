@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { X, Mail, Lock, ShieldCheck, User, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight, RefreshCw, Send, HelpCircle } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { DataService } from "@/lib/dataService";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -329,9 +330,29 @@ export function AuthModal({ isOpen, onClose, user, onAuthSuccess }: AuthModalPro
             </div>
 
             <button
+              type="button"
+              onClick={async () => {
+                if (confirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลรายรับ-รายจ่ายทั้งหมดให้เป็น 0? (การกระทำนี้ไม่สามารถย้อนกลับได้)")) {
+                  try {
+                    setLoading(true);
+                    await DataService.clearAllUserData();
+                    onAuthSuccess();
+                    setInfoMsg("รีเซ็ตข้อมูลทั้งหมดเป็น 0 เรียบร้อยแล้ว!");
+                  } finally {
+                    setLoading(false);
+                  }
+                }
+              }}
+              disabled={loading}
+              className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold text-xs transition-colors border border-amber-200/80 flex items-center justify-center gap-1.5"
+            >
+              🔄 รีเซ็ตข้อมูลทั้งหมดเป็น 0 (Reset Data)
+            </button>
+
+            <button
               onClick={handleSignOut}
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs transition-colors border border-rose-100"
+              className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs transition-colors border border-rose-100"
             >
               {loading ? "กำลังออกจากระบบ..." : "ออกจากระบบ"}
             </button>

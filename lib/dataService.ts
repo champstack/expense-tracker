@@ -45,15 +45,31 @@ export class DataService {
   }
 
   private static getStoredTransactions(): Transaction[] {
-    if (typeof window === "undefined") return INITIAL_TRANSACTIONS;
+    if (typeof window === "undefined") return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEY_TX);
-      if (stored) return JSON.parse(stored);
-      localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(INITIAL_TRANSACTIONS));
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // หากพบข้อมูลตัวอย่างเก่า ให้ล้างเป็น 0 ทั้งหมด
+          const hasOldMock = parsed.some(
+            (t: any) =>
+              t.note === "เงินเดือนประจำเดือน" ||
+              t.note === "ค่าห้องพัก + ค่าน้ำไฟ" ||
+              (typeof t.id === "string" && /^tx-[1-9]$/.test(t.id))
+          );
+          if (hasOldMock) {
+            localStorage.setItem(STORAGE_KEY_TX, JSON.stringify([]));
+            return [];
+          }
+          return parsed;
+        }
+      }
+      localStorage.setItem(STORAGE_KEY_TX, JSON.stringify([]));
     } catch {
       // fallback
     }
-    return INITIAL_TRANSACTIONS;
+    return [];
   }
 
   static async getCategories(): Promise<Category[]> {
@@ -241,18 +257,7 @@ export class DataService {
             account: accounts.find((a) => a.id === tx.account_id) || DEFAULT_ACCOUNTS.find((a) => a.id === (tx.account_id || "acc-cash")),
             category: tx.category || categories.find((c) => c.id === tx.category_id) || DEFAULT_CATEGORIES.find((c) => c.id === tx.category_id),
           }));
-          // Merge local fallback items to ensure no data loss
-          const localTxs = this.getStoredTransactions().map((tx) => ({
-            ...tx,
-            amount: parseFloat(String(tx.amount)) || 0,
-            account: tx.account || accounts.find((a) => a.id === (tx.account_id || "acc-cash")) || DEFAULT_ACCOUNTS.find((a) => a.id === (tx.account_id || "acc-cash")),
-            category: tx.category || categories.find((c) => c.id === tx.category_id) || DEFAULT_CATEGORIES.find((c) => c.id === tx.category_id),
-          }));
-          const existingIds = new Set(supabaseTxs.map((t: any) => t.id));
-          const uniqueLocal = localTxs.filter((t) => !existingIds.has(t.id));
-          const merged = [...supabaseTxs, ...uniqueLocal];
-          merged.sort((a, b) => (b.transaction_date || "").localeCompare(a.transaction_date || ""));
-          return merged;
+          return supabaseTxs;
         }
       } catch (err) {
         console.warn("Supabase fetch transactions error, falling back to local:", err);
@@ -416,11 +421,28 @@ export class DataService {
     return true;
   }
 
-  static async resetToSampleData(): Promise<void> {
+  static async clearAllUserData(): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    if (user && isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        await supabase.from("transactions").delete().eq("user_id", user.id);
+      } catch (err) {
+        console.warn("Supabase clear all transactions error:", err);
+      }
+    }
+
     if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(INITIAL_TRANSACTIONS));
+      localStorage.setItem(STORAGE_KEY_TX, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEY_CAT, JSON.stringify(DEFAULT_CATEGORIES));
       localStorage.setItem(STORAGE_KEY_ACC, JSON.stringify(DEFAULT_ACCOUNTS));
+      localStorage.removeItem("expense_tracker_budgets");
+      localStorage.removeItem("expense_tracker_goals");
     }
+    return true;
+  }
+
+  static async resetToSampleData(): Promise<void> {
+    await this.clearAllUserData();
   }
 }

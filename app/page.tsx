@@ -9,6 +9,7 @@ import { CalendarView } from "@/components/calendar/CalendarView";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { TransactionFormModal } from "@/components/transactions/TransactionFormModal";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { AuthScreen } from "@/components/auth/AuthScreen";
 import { CategoryView } from "@/components/categories/CategoryView";
 import { AccountView } from "@/components/accounts/AccountView";
 import { DataService } from "@/lib/dataService";
@@ -670,6 +671,7 @@ export default function HomePage() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const isOnline = isSupabaseConfigured();
 
@@ -690,19 +692,48 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    loadData();
+    let mounted = true;
     if (isOnline) {
       try {
         const supabase = createClient();
-        supabase.auth.getUser().then((res: any) => setUser(res?.data?.user || null));
+        supabase.auth
+          .getUser()
+          .then((res: any) => {
+            if (mounted) {
+              setUser(res?.data?.user || null);
+              setAuthLoading(false);
+            }
+          })
+          .catch(() => {
+            if (mounted) setAuthLoading(false);
+          });
+
         const { data: listener } = supabase.auth.onAuthStateChange((_e: any, session: any) => {
-          setUser(session?.user || null);
-          loadData();
+          if (mounted) {
+            setUser(session?.user || null);
+            setAuthLoading(false);
+            loadData();
+          }
         });
-        return () => listener?.subscription?.unsubscribe();
-      } catch { /* ignore */ }
+
+        return () => {
+          mounted = false;
+          listener?.subscription?.unsubscribe();
+        };
+      } catch {
+        if (mounted) setAuthLoading(false);
+      }
+    } else {
+      setAuthLoading(false);
+      loadData();
     }
   }, [loadData, isOnline]);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user, loadData]);
 
   const y = currentDate.getFullYear(), m = currentDate.getMonth();
 
@@ -827,6 +858,36 @@ export default function HomePage() {
     accounts: "บัญชี & กระเป๋าเงิน",
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/25 animate-pulse mb-4">
+          <Wallet className="w-7 h-7" />
+        </div>
+        <p className="text-sm font-semibold text-slate-700">กำลังตรวจสอบข้อมูลผู้ใช้...</p>
+        <p className="text-xs text-slate-400 mt-1">Money Planner</p>
+      </div>
+    );
+  }
+
+  // หากยังไม่ได้เข้าสู่ระบบ บังคับให้เข้าสู่ระบบก่อนใช้งาน
+  if (isOnline && !user) {
+    return (
+      <AuthScreen
+        onAuthSuccess={async () => {
+          try {
+            const supabase = createClient();
+            const { data } = await supabase.auth.getUser();
+            setUser(data?.user || null);
+          } catch {
+            /* ignore */
+          }
+          await loadData();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <TopBar
@@ -942,13 +1003,22 @@ export default function HomePage() {
                 </div>
 
                 {/* Footer */}
-                <div className="text-center py-2 text-xs text-slate-300 flex items-center justify-center gap-3">
-                  <button onClick={() => { if (confirm("รีเซ็ตข้อมูลตัวอย่าง?")) DataService.resetToSampleData().then(loadData); }}
-                    className="flex items-center gap-1 hover:text-slate-500 transition-colors">
-                    <RotateCcw className="w-3 h-3" /> Reset Demo
+                <div className="text-center py-2 text-xs text-slate-400 flex items-center justify-center gap-3">
+                  <button
+                    onClick={async () => {
+                      if (confirm("⚠️ ต้องการล้างข้อมูลรายรับ-รายจ่ายทั้งหมดให้เป็น 0 ใช่หรือไม่?")) {
+                        await DataService.clearAllUserData();
+                        await loadData();
+                      }
+                    }}
+                    className="flex items-center gap-1 hover:text-rose-500 transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" /> รีเซ็ตข้อมูลเป็น 0
                   </button>
                   <span>•</span>
-                  <button onClick={() => setIsAuthOpen(true)} className="hover:text-slate-500 transition-colors">เชื่อมต่อ Supabase</button>
+                  <button onClick={() => setIsAuthOpen(true)} className="hover:text-indigo-600 transition-colors">
+                    {user?.email || "จัดการบัญชี"}
+                  </button>
                 </div>
               </div>
             )}
