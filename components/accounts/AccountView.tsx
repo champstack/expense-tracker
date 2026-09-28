@@ -150,7 +150,7 @@ export function AccountView({
         <div>
           <p className="text-xs sm:text-sm text-indigo-200 font-medium">ยอดเงินรวมทุกบัญชี (Total Assets)</p>
           <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
-            ฿{formatCurrency(totalBalance)}
+            {formatCurrency(totalBalance)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -302,7 +302,7 @@ export function AccountView({
       )}
 
       {/* Accounts Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
         {accounts.map((acc) => {
           const balance = accountBalances[acc.id] ?? Number(acc.initial_balance || 0);
           return (
@@ -340,7 +340,7 @@ export function AccountView({
               <div className="pt-3 border-t border-slate-100 flex items-baseline justify-between">
                 <span className="text-xs text-slate-400 font-medium">ยอดเงินคงเหลือ</span>
                 <span className={cn("text-lg font-bold tabular-nums", balance < 0 ? "text-rose-600" : "text-slate-800")}>
-                  ฿{formatCurrency(balance)}
+                  {formatCurrency(balance)}
                 </span>
               </div>
             </div>
