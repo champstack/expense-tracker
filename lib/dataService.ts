@@ -214,9 +214,24 @@ export class DataService {
     supabase: any
   ): Promise<string | null> {
     if (!categoryId) return null;
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId);
-    if (isUUID) return categoryId;
 
+    // ถ้าเป็น UUID อยู่แล้ว ให้ตรวจสอบว่ามีอยู่ใน Supabase จริงหรือไม่
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId);
+    if (isUUID) {
+      try {
+        const { data } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("id", categoryId)
+          .limit(1);
+        if (data && data.length > 0) return categoryId;
+      } catch {
+        // ignore
+      }
+    }
+
+    // ถ้าไม่ใช่ UUID (เช่น cat-food, cat-salary จาก DEFAULT_CATEGORIES) หรือ UUID ไม่พบ
+    // ให้ค้นหาด้วยชื่อหมวดหมู่
     try {
       const localCat = DEFAULT_CATEGORIES.find((c) => c.id === categoryId);
       const targetName = localCat?.name;
@@ -234,6 +249,21 @@ export class DataService {
     } catch {
       // ignore
     }
+
+    // ถ้ายังไม่พบ ให้ค้นหา category ใด ๆ ที่ type ตรงกัน แล้วใช้อันแรก
+    try {
+      const { data } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("type", type)
+        .limit(1);
+      if (data && data.length > 0) {
+        return data[0].id;
+      }
+    } catch {
+      // ignore
+    }
+
     return null;
   }
 
@@ -250,6 +280,9 @@ export class DataService {
           .select("*, category:categories(*)")
           .eq("user_id", user.id)
           .order("transaction_date", { ascending: false });
+        if (error) {
+          console.error("[DataService] getTransactions Supabase error:", error.code, error.message);
+        }
         if (!error && data) {
           const supabaseTxs: Transaction[] = data.map((tx: any) => ({
             ...tx,
@@ -257,10 +290,26 @@ export class DataService {
             account: accounts.find((a) => a.id === tx.account_id) || DEFAULT_ACCOUNTS.find((a) => a.id === (tx.account_id || "acc-cash")),
             category: tx.category || categories.find((c) => c.id === tx.category_id) || DEFAULT_CATEGORIES.find((c) => c.id === tx.category_id),
           }));
-          return supabaseTxs;
+
+          // รวมกับ localStorage เผื่อมีรายการที่ insert ผ่าน local แต่ยังไม่ sync
+          const localTxs = this.getStoredTransactions();
+          const supabaseIds = new Set(supabaseTxs.map((t) => t.id));
+          // กรองเอาเฉพาะ local transactions ที่มี ID ขึ้นต้น "tx-" (local generated) และไม่ซ้ำกับ Supabase
+          const onlyLocalTxs = localTxs
+            .filter((t) => t.id.startsWith("tx-") && !supabaseIds.has(t.id))
+            .map((tx) => ({
+              ...tx,
+              amount: parseFloat(String(tx.amount)) || 0,
+              category: tx.category || categories.find((c) => c.id === tx.category_id) || DEFAULT_CATEGORIES.find((c) => c.id === tx.category_id),
+              account: tx.account || accounts.find((a) => a.id === (tx.account_id || "acc-cash")) || DEFAULT_ACCOUNTS.find((a) => a.id === (tx.account_id || "acc-cash")),
+            }));
+
+          const merged = [...supabaseTxs, ...onlyLocalTxs];
+          merged.sort((a, b) => (b.transaction_date || "").localeCompare(a.transaction_date || ""));
+          return merged;
         }
       } catch (err) {
-        console.warn("Supabase fetch transactions error, falling back to local:", err);
+        console.error("[DataService] getTransactions exception:", err);
       }
     }
 
@@ -275,6 +324,7 @@ export class DataService {
     list.sort((a, b) => (b.transaction_date || "").localeCompare(a.transaction_date || ""));
     return list;
   }
+
 
   static async addTransaction(tx: Omit<Transaction, "id" | "created_at">): Promise<Transaction> {
     const res = await this.addMultipleTransactions([tx]);
@@ -358,6 +408,8 @@ export class DataService {
             };
           })
         );
+
+        console.log("[DataService] Inserting to Supabase:", payload);
         const { data, error } = await supabase
           .from("transactions")
           .insert(payload)
@@ -370,15 +422,18 @@ export class DataService {
             account: accounts.find((a) => a.id === tx.account_id) || DEFAULT_ACCOUNTS.find((a) => a.id === (tx.account_id || "acc-cash")),
             category: tx.category || categories.find((c) => c.id === tx.category_id) || DEFAULT_CATEGORIES.find((c) => c.id === tx.category_id),
           }));
+          console.log("[DataService] Supabase insert success:", supabaseResult?.length, "items");
         }
         if (error) {
-          console.warn("Supabase addMultipleTransactions notice (saving locally):", error.message);
+          console.error("[DataService] Supabase insert error:", error.code, error.message, error.details, error.hint);
         }
       } catch (err) {
-        console.warn("Supabase batch add error, saving locally:", err);
+        console.error("[DataService] Supabase batch add exception:", err);
       }
     }
 
+    // บันทึกลง localStorage เสมอ (ทั้ง guest mode และ Supabase mode)
+    // เพื่อให้ UI อัปเดตได้ทันทีแม้ Supabase insert จะล้มเหลว
     const newTransactions: Transaction[] = items.map((item, index) => {
       const targetCatId = item.category_id;
       const targetAccId = item.account_id || "acc-cash";
@@ -398,8 +453,11 @@ export class DataService {
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(updated));
     }
+
+    // คืน Supabase result ถ้าสำเร็จ หรือ local transactions ถ้าไม่สำเร็จ
     return supabaseResult || newTransactions;
   }
+
 
   static async deleteTransaction(id: string): Promise<boolean> {
     const user = await this.getCurrentUser();
