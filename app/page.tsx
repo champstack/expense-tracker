@@ -299,7 +299,7 @@ function BudgetView({ transactions, categories, currentMonth }: {
   const budgetMap = new Map(budgets.map((b) => [b.category_id, b.monthly_limit]));
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start w-full">
       {/* Section: งบประมาณรายหมวดหมู่ */}
       <div className="bg-white rounded-2xl border border-black/[0.06] shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
