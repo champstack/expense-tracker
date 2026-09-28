@@ -911,8 +911,8 @@ export default function HomePage() {
           user={user}
         />
 
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0 flex flex-col">
-          <div className={activeTab === "calendar" || activeTab === "transactions" ? "flex flex-col flex-1 px-3 sm:px-4 pt-3 sm:pt-4 pb-20 md:pb-4 min-h-0" : "max-w-5xl mx-auto w-full px-4 pt-5 pb-8 space-y-5"}>
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0 flex flex-col w-full">
+          <div className={activeTab === "calendar" || activeTab === "transactions" ? "flex flex-col flex-1 px-4 sm:px-6 lg:px-8 pt-4 pb-20 md:pb-6 min-h-0 w-full" : "w-full px-4 sm:px-6 lg:px-8 py-5 space-y-6 flex-1"}>
             {/* Sub header for transactions tab */}
             {activeTab === "transactions" && (
               <div className="flex items-center justify-between mb-3 shrink-0 gap-2">

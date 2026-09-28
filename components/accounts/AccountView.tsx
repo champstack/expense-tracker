@@ -302,7 +302,7 @@ export function AccountView({
       )}
 
       {/* Accounts Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {accounts.map((acc) => {
           const balance = accountBalances[acc.id] ?? Number(acc.initial_balance || 0);
           return (

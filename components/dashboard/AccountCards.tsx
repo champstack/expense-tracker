@@ -69,7 +69,7 @@ export function AccountCards({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
         {accounts.map((acc) => {
           const stats = accountBalances[acc.id] || { balance: 0, income: 0, expense: 0 };
           const isNegative = stats.balance < 0;
